@@ -33,4 +33,15 @@ describe("Acceptance test cases for the parser and roller", () => {
         expect(result).toBeGreaterThanOrEqual(2);
         expect(result).toBeLessThan(13)
     })
+
+    it("should be able to calculate the threshold of some dice", () => {
+        const engine = parse("threshold(array(d12, d8, d6, d4), 3)");
+
+        const result = engine.roll()
+
+        expect(Array.isArray(result)).toBeFalsy();
+
+        expect(result).toBeGreaterThanOrEqual(0);
+        expect(result).toBeLessThan(5)
+    })
 })

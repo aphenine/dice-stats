@@ -1,7 +1,11 @@
+import { ConstantRollable } from "../engine/constant";
 import { DiceRollable } from "../engine/dice";
 import { DiceArrayRollable } from "../engine/dice-array";
+import { ThresholdRollable } from "../engine/functions/threshold";
 import { TotalRollable } from "../engine/functions/total";
 import { ArrayRollable, Rollable } from "../engine/rollable";
+import { is_constant, is_dice_array, is_function, is_single_dice, is_whitespace } from "./lexer/matchers";
+import { CONSTANT_REGEXP, DICE_ARRAY_REGEXP, SINGLE_DICE_REGEXP } from "./lexer/regexps";
 
 export interface AstNode {
     type: string;
@@ -10,25 +14,14 @@ export interface AstNode {
     children: Array<AstNode>;
 }
 
-const WHITESPACE_CHARS = " \t\n\r";
-const SINGLE_DICE_REGEXP = /^d\d+/;
-const DICE_ARRAY_REGEXP = /^\d+d\d+/;
-const FUNCTION_REGEXP = /^\w+\((?:[\w\d]+\,)*[\w\d]+\)/
+function constant_token(text:string) {
+    const match = text.match(CONSTANT_REGEXP);
 
-function is_whitespace(character: string) {
-    return WHITESPACE_CHARS.includes(character[0]);
-}
+    if (match === null) {
+        return null;
+    }
 
-function is_single_dice(text: string) {
-    return SINGLE_DICE_REGEXP.test(text)
-}
-
-function is_dice_array(text:string) {
-    return DICE_ARRAY_REGEXP.test(text)
-}
-
-function is_function(text: string) {
-    return FUNCTION_REGEXP.test(text)
+    return match[0];
 }
 
 function dice_token(text: string): string | null {
@@ -51,14 +44,34 @@ function dice_array_token(text: string): string | null {
     return match[0];
 }
 
-function function_token (text:string): string | null {
-    const match = text.match(FUNCTION_REGEXP);
+function findMatchingBracket(text: string): number | null {
+    let stack = 0
+    let pos = 0;
+    for(const char of text) {
+        if (char === '(') {
+            stack += 1
+        }
+        if (char === ')') {
+            stack -= 1
+            if (stack === 0) {
+                return pos
+            }
+        }
+        pos++;
+    }
+    return null;
+}
 
-    if (match === null) {
-        return null;
+function function_token(text:string): string | null {
+    const firstBracket = text.indexOf('(');
+    const name = text.slice(0, firstBracket);
+    const fromFirstBracket = text.slice(firstBracket);
+    const lastBracket = findMatchingBracket(fromFirstBracket);
+    if (lastBracket === null) {
+        throw Error(`Missing closing bracket on function ${name}(`);
     }
 
-    return match[0];
+    return text.slice(0, firstBracket + lastBracket + 1)
 }
 
 function parse_dice(node: AstNode) {
@@ -73,8 +86,13 @@ function parse_dice_array(node: AstNode) {
     return new DiceArrayRollable(dice, faces);
 }
 
+function parse_constant(node: AstNode) {
+    const value = parseInt(node.matchedText);
+
+    return new ConstantRollable(value);
+}
+
 function parse_function(node: AstNode) {
-    console.log("Parse function");
     const args: Array<Rollable> = [];
 
     if (node.children.length > 1 && node.children.some((c) => c.type === "diceArray")) {
@@ -82,38 +100,65 @@ function parse_function(node: AstNode) {
     }
 
     for (const child of node.children) {
-        console.log(child);
         if (child.type === "dice") {
             args.push(parse_dice(child));
-        } 
-        // else if (child.type === "diceArray") {
-        //     args.push(parse_dice_array(child))
-        // }
+        }
+        if (child.type === 'array') {
+            args.push(parse_function(child));
+        }
+        if (child.type === 'constant') {
+            args.push(parse_constant(child));
+        }
     }
 
     switch(node.name) {
         case "total":
-            console.log("Return total rollable");
             return new TotalRollable(args);
         // case "max":
         //     return new MaxRollable(args);
         // case "min": 
         //     return new MinimumRollable(args);
-        // case "thresshold":
-        //     return new ThresholdRollable(args);
+        case "thresshold":
+            return new ThresholdRollable(args.slice(0, -1), args[args.length-1]);
     }
 
     return new DiceRollable(6);
 }
 
+function splitTakingIntoAccountBrackets(s: string): Array<string> {
+    let current='';
+    let parenthesis=0;
+    const results = [];
+    for(let i=0, l=s.length; i<l; i++){ 
+        if(s[i] == '('){ 
+            parenthesis++; 
+            current=current+'(';
+        }else if(s[i]==')' && parenthesis > 0){ 
+            parenthesis--;
+            current=current+')';
+        }else if(s[i] ===',' && parenthesis == 0){
+            results.push(current);
+            current=''
+        }else{
+            current=current+s[i];
+        }   
+    }
+    if(current !== ''){
+        results.push(current)
+    }
+    return results
+}
+
 export class Lexer {
     public testFunctions: Record<string, (text: string) => boolean> = {
+        constant: is_constant,
         dice: is_single_dice,
         diceArray: is_dice_array,
         function: is_function,
     };
 
     public tokenFuncs: Record<string, (text: string) => string | null> = {
+        constant: constant_token,
         dice: dice_token,
         diceArray: dice_array_token,
         function: function_token,
@@ -129,7 +174,16 @@ export class Lexer {
         children: []
     }
 
-    constructor(public input: string) {
+    constructor(public input: string, node?: AstNode) {
+        if (!node) {
+            this.rootNode = {
+                type: "root",
+                matchedText: "",
+                children: []
+            }
+        } else {
+            this.rootNode = node;
+        }
     }
 
     read(node: AstNode) {
@@ -138,13 +192,14 @@ export class Lexer {
 
         const matchedType: Array<string> = [];
         for (const [type, testFunc] of Object.entries(this.testFunctions)) {
+            console.log(type, testFunc);
             if (testFunc(strippedTestString)) {
                 matchedType.push(type)
             }
         }
 
         if (matchedType.length > 1) {
-            throw Error(`${strippedTestString} matched more than one thing`);
+            throw Error(`${strippedTestString} matched more than one thing: ${matchedType}`);
         }
 
         if (matchedType.length === 0) {
@@ -167,6 +222,11 @@ export class Lexer {
 
         if (type === "function") {
             this.readFunction(child);
+            // Check for special functions that are also language features
+            if (child.name=== "array") {
+                child.type = "array";
+                child.name = undefined;
+            }
         }
 
         node.children.push(child)
@@ -176,32 +236,20 @@ export class Lexer {
 
     readFunction(node: AstNode) {
         const firstBracket = node.matchedText.indexOf('(');
-        const lastBracket = node.matchedText.indexOf(')');
+        const name = node.matchedText.slice(0, firstBracket);
+        const fromFirstBracket = node.matchedText.slice(firstBracket);
+        const lastBracket = findMatchingBracket(fromFirstBracket);
 
-        const funcName = node.matchedText.slice(0,firstBracket);
-        const args = node.matchedText.slice(firstBracket + 1, lastBracket);
-        const splitArgs = args.split(',');
+        const insideBrackets = fromFirstBracket.slice(1, lastBracket!);
 
-        node.name = funcName;
+        const args = splitTakingIntoAccountBrackets(insideBrackets).map(x => x.trim());
 
-        for(const arg of splitArgs) {
-            if (is_single_dice(arg)) {
-                node.children.push({
-                    type: "dice",
-                    matchedText: arg,
-                    children: [],
-                })
-            }
-            else if (is_dice_array(arg)) {
-                node.children.push({
-                    type: "diceArray",
-                    matchedText: arg,
-                    children: [],
-                })
-            }
-            else {
-                throw Error(`Bad argument ${arg}`);
-            }
+        console.log(args);
+        node.name = name
+
+        for(const arg of args) {
+            const subLexer = new Lexer(arg, node);
+            subLexer.readWhile();
         }
 
         return node;
@@ -223,6 +271,7 @@ export class Parser{
         dice: parse_dice,
         diceArray: parse_dice_array,
         function: parse_function,
+        array: parse_dice_array,
     }
 
     constructor(public rootNode: AstNode) {
