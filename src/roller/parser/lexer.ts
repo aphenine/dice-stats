@@ -175,6 +175,7 @@ export class Lexer {
     }
 
     constructor(public input: string, node?: AstNode) {
+        console.log(input);
         if (!node) {
             this.rootNode = {
                 type: "root",
@@ -192,7 +193,6 @@ export class Lexer {
 
         const matchedType: Array<string> = [];
         for (const [type, testFunc] of Object.entries(this.testFunctions)) {
-            console.log(type, testFunc);
             if (testFunc(strippedTestString)) {
                 matchedType.push(type)
             }
@@ -256,7 +256,7 @@ export class Lexer {
     }
 
     isEOF() {
-        return this.position + 1 >= this.input.length;
+        return this.position + 1 > this.input.length;
     }
 
     readWhile() {
