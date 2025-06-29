@@ -2,10 +2,11 @@ import { histogram } from "@/math/utils/histogram";
 import { Rollable } from "@/roller/engine/rollable";
 import { parse } from "@/roller/parser/parse";
 import { FC, useState, useEffect } from "react";
+import Series from "../types/series";
 
 interface InputDiceRollProps {
     uniqueId: string,
-    addSeries: (something: unknown) => void
+    addSeries: (series: Series) => void
   }
   
   const InputDiceRoll: FC<InputDiceRollProps> = ({uniqueId, addSeries}: InputDiceRollProps) => {

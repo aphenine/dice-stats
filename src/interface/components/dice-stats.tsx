@@ -5,11 +5,12 @@ import * as Highcharts from 'highcharts';
 import { FC, useCallback, useMemo, useRef, useState } from "react";
 import { histogram } from "@/math/utils/histogram";
 import InputDiceRoll from "./input-dice-roll";
+import Series from "../types/series";
 
 type Props = object
 
 const DiceStats: FC<Props> = ({}: Props) => {
-    const [allSeries, setAllSeries] = useState<Record<string, any>>({});
+    const [allSeries, setAllSeries] = useState<Record<string, Series>>({});
 
     const chartComponentRef = useRef<HighchartsReact.RefObject>(null);
 
@@ -21,12 +22,11 @@ const DiceStats: FC<Props> = ({}: Props) => {
       },
       series: Object.values(allSeries).map(series => ({
         type: 'column',
-        label: series.label,
         data: histogram(series.data, 1),
       })),
     }), [allSeries]);
 
-    const addSeries = useCallback((series) => {
+    const addSeries = useCallback((series: Series) => {
       setAllSeries((as) => ({...as, [series.id]: series}));
       allSeries[series.label] = series;
     }, [allSeries]);
