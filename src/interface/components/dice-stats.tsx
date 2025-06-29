@@ -1,61 +1,41 @@
 'use client'
 
-import { Rollable } from "@/roller/engine/rollable";
-import { parse } from "@/roller/parser/parse";
 import HighchartsReact from "highcharts-react-official";
 import * as Highcharts from 'highcharts';
-import { FC, useEffect, useRef, useState } from "react";
+import { FC, useCallback, useMemo, useRef, useState } from "react";
 import { histogram } from "@/math/utils/histogram";
+import InputDiceRoll from "./input-dice-roll";
 
 type Props = object
 
 const DiceStats: FC<Props> = ({}: Props) => {
-    const [inputText, setInputText] = useState("");
-    const [engine, setEngine] = useState<null|Rollable>(null);
+    const [allSeries, setAllSeries] = useState<Record<string, any>>({});
 
-
-    const [series, setSeries] = useState<number[]>([]);
     const chartComponentRef = useRef<HighchartsReact.RefObject>(null);
 
-    const options: Highcharts.Options = {
+    console.log(allSeries);
+
+    const options: Highcharts.Options = useMemo(() => ({
       title: {
           text: 'My chart'
       },
-      series: [
-      //   {
-      //     type: 'histogram',
-      //     baseSeries: 1
-      // }, {
-      //   type: "line",
-      //   data: series,
-      // }
-        {
-          type: 'column',
-          data: series.length > 0 ? histogram(series, 1) : []
-        }
-      ]
-  };
+      series: Object.values(allSeries).map(series => ({
+        type: 'column',
+        label: series.label,
+        data: histogram(series.data, 1),
+      })),
+    }), [allSeries]);
 
-    useEffect(() => {
-      if (engine) {
-        setSeries(Array(100).fill(null).map(() => engine.roll()))
-      }
-    }, [engine]);
+    const addSeries = useCallback((series) => {
+      setAllSeries((as) => ({...as, [series.id]: series}));
+      allSeries[series.label] = series;
+    }, [allSeries]);
 
     return (
         <div>
-          <label >Dice: </label>
-          <input id="dice" type="text" onChange={(e) => setInputText(e.target.value)} value={inputText}></input>
-          <button onClick={() => {
-            setEngine(parse(inputText))
-          }}>Roll</button>
+          <InputDiceRoll uniqueId={"id"} addSeries={addSeries} />
 
-          <div>
-            {engine && engine.roll()}
-            {!engine && "No engine"}
-          </div>
-
-          {series.length > 0 && (
+          {options.series!.length > 0 && (
             <HighchartsReact
             highcharts={Highcharts}
             options={options}

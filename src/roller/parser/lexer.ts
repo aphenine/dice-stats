@@ -3,6 +3,7 @@ import { DiceRollable } from "../engine/dice";
 import { DiceArrayRollable } from "../engine/dice-array";
 import { ThresholdRollable } from "../engine/functions/threshold";
 import { TotalRollable } from "../engine/functions/total";
+import { CreateArrayOperator } from "../engine/operators/array";
 import { ArrayRollable, Rollable } from "../engine/rollable";
 import { is_constant, is_dice_array, is_function, is_single_dice, is_whitespace } from "./lexer/matchers";
 import { CONSTANT_REGEXP, DICE_ARRAY_REGEXP, SINGLE_DICE_REGEXP } from "./lexer/regexps";
@@ -93,7 +94,7 @@ function parse_constant(node: AstNode) {
 }
 
 function parse_function(node: AstNode) {
-    const args: Array<Rollable> = [];
+    const args: Array<Rollable | ArrayRollable> = [];
 
     if (node.children.length > 1 && node.children.some((c) => c.type === "diceArray")) {
         throw Error(`You must pass either a single dice array or all dice only as function arguments`);
@@ -111,15 +112,21 @@ function parse_function(node: AstNode) {
         }
     }
 
+    // ToDo Function signature handling
+
+    if (node.type === "array") {
+        return new CreateArrayOperator(args as Array<Rollable>)
+    }
+
     switch(node.name) {
         case "total":
-            return new TotalRollable(args);
+            return new TotalRollable(args as Array<Rollable>);
         // case "max":
         //     return new MaxRollable(args);
         // case "min": 
         //     return new MinimumRollable(args);
-        case "thresshold":
-            return new ThresholdRollable(args.slice(0, -1), args[args.length-1]);
+        case "threshold":
+            return new ThresholdRollable(args[0] as ArrayRollable, args[1] as Rollable);
     }
 
     return new DiceRollable(6);
@@ -272,6 +279,7 @@ export class Parser{
         diceArray: parse_dice_array,
         function: parse_function,
         array: parse_dice_array,
+        constant: parse_constant,
     }
 
     constructor(public rootNode: AstNode) {
