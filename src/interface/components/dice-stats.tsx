@@ -11,6 +11,7 @@ type Props = object
 
 const DiceStats: FC<Props> = ({}: Props) => {
     const [allSeries, setAllSeries] = useState<Record<string, Series>>({});
+    const [inputs, setInputs] = useState(1);
 
     const chartComponentRef = useRef<HighchartsReact.RefObject>(null);
 
@@ -33,7 +34,12 @@ const DiceStats: FC<Props> = ({}: Props) => {
 
     return (
         <div>
-          <InputDiceRoll uniqueId={"id"} addSeries={addSeries} />
+          {
+            Array(inputs).fill(null).map((_, i) => (
+              <InputDiceRoll key={i} uniqueId={`${i}`} addSeries={addSeries} />
+            ))
+          }
+          <div><button onClick={() => setInputs(inputs+1)}>Add new dice roll</button></div>
 
           {options.series!.length > 0 && (
             <HighchartsReact
