@@ -1,6 +1,8 @@
-import { ArrayRollable, Rollable } from "../rollable";
+import { ArrayRollable, Rollable, RollableType } from "../rollable";
 
 export class ThresholdRollable implements Rollable {
+    public type = RollableType.Scalar
+
     constructor (public args: ArrayRollable, public threshold: Rollable) {
         console.log(args);
     }

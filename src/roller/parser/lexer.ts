@@ -1,6 +1,7 @@
 import { ConstantRollable } from "../engine/constant";
 import { DiceRollable } from "../engine/dice";
 import { DiceArrayRollable } from "../engine/dice-array";
+import { RemoveDiceRollable } from "../engine/functions/remove";
 import { ThresholdRollable } from "../engine/functions/threshold";
 import { TotalRollable } from "../engine/functions/total";
 import { CreateArrayOperator } from "../engine/operators/array";
@@ -107,6 +108,9 @@ function parse_function(node: AstNode) {
         if (child.type === 'array') {
             args.push(parse_function(child));
         }
+        if (child.type === 'function') {
+            args.push(parse_function(child))
+        }
         if (child.type === 'constant') {
             args.push(parse_constant(child));
         }
@@ -118,6 +122,8 @@ function parse_function(node: AstNode) {
         return new CreateArrayOperator(args as Array<Rollable>)
     }
 
+    console.log(args);
+
     switch(node.name) {
         case "total":
             return new TotalRollable(args as Array<Rollable>);
@@ -125,6 +131,8 @@ function parse_function(node: AstNode) {
         //     return new MaxRollable(args);
         // case "min": 
         //     return new MinimumRollable(args);
+        case "remove":
+            return new RemoveDiceRollable(args[0] as ArrayRollable, args[1] as Rollable);
         case "threshold":
             return new ThresholdRollable(args[0] as ArrayRollable, args[1] as Rollable);
     }

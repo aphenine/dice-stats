@@ -23,7 +23,7 @@ const DiceStats: FC<Props> = ({}: Props) => {
       },
       series: Object.values(allSeries).map(series => ({
         type: 'column',
-        data: histogram(series.data, 1),
+        data: Object.values(histogram(series.data, 1)),
       })),
     }), [allSeries]);
 
