@@ -6,6 +6,7 @@ import { ThresholdRollable } from "../engine/functions/threshold";
 import { TotalRollable } from "../engine/functions/total";
 import { CreateArrayOperator } from "../engine/operators/array";
 import { ArrayRollable, Rollable } from "../engine/rollable";
+import { splitTakingIntoAccountBrackets } from "../utils/split";
 import { is_constant, is_dice_array, is_function, is_single_dice, is_whitespace } from "./lexer/matchers";
 import { CONSTANT_REGEXP, DICE_ARRAY_REGEXP, SINGLE_DICE_REGEXP } from "./lexer/regexps";
 
@@ -138,30 +139,6 @@ function parse_function(node: AstNode) {
     }
 
     return new DiceRollable(6);
-}
-
-function splitTakingIntoAccountBrackets(s: string): Array<string> {
-    let current='';
-    let parenthesis=0;
-    const results = [];
-    for(let i=0, l=s.length; i<l; i++){ 
-        if(s[i] == '('){ 
-            parenthesis++; 
-            current=current+'(';
-        }else if(s[i]==')' && parenthesis > 0){ 
-            parenthesis--;
-            current=current+')';
-        }else if(s[i] ===',' && parenthesis == 0){
-            results.push(current);
-            current=''
-        }else{
-            current=current+s[i];
-        }   
-    }
-    if(current !== ''){
-        results.push(current)
-    }
-    return results
 }
 
 export class Lexer {
