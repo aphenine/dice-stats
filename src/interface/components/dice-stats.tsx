@@ -19,12 +19,18 @@ const DiceStats: FC<Props> = ({}: Props) => {
 
     const options: Highcharts.Options = useMemo(() => ({
       title: {
-          text: 'My chart'
+          text: 'Statistics'
       },
       series: Object.values(allSeries).map(series => ({
         type: 'column',
-        data: Object.values(histogram(series.data, 1)),
+        data: Object.entries(histogram(series.data, 1)),
       })),
+      xAxis: [{
+        type: "category",
+        labels: {
+          "format": "{value}"
+        }
+      }]
     }), [allSeries]);
 
     const addSeries = useCallback((series: Series) => {
