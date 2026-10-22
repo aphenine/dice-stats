@@ -1,4 +1,4 @@
-import { Rollable } from "@/roller/engine/rollable";
+import { AnyRollable } from "@/roller/engine/rollable";
 import { parse } from "@/roller/parser/parse";
 import { FC, useState, useEffect, useMemo } from "react";
 import Series from "../types/series";
@@ -11,14 +11,14 @@ interface InputDiceRollProps {
   const InputDiceRoll: FC<InputDiceRollProps> = ({uniqueId, addSeries}: InputDiceRollProps) => {
       const [inputText, setInputText] = useState("");
       const [timesText, setTimesText] = useState("100");
-      const [engine, setEngine] = useState<null|Rollable>(null);
+      const [engine, setEngine] = useState<null|AnyRollable>(null);
       const [series, setSeries] = useState<number[]>([]);
 
       const times = useMemo(() => parseInt(timesText), [timesText]);
   
       useEffect(() => {
         if (engine) {
-          setSeries(Array(times).fill(null).map(() => engine.roll()))
+          setSeries(Array(times).fill(null).flatMap(() => engine.roll()))
         }
       }, [engine, times]);
   

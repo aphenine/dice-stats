@@ -1,13 +1,12 @@
-import { ArrayRollable, RollableType } from "./rollable";
 import { rollerService } from "../services/roller";
-
+import { ArrayRollable, RollableType } from "./rollable";
 
 export class DiceArrayRollable implements ArrayRollable {
-    public type = RollableType.Array;
+    readonly type = RollableType.Array;
 
-    constructor (public dice: number, public faces: number = 6) {}
+    constructor(public readonly dice: number, public readonly faces: number) {}
 
     roll() {
-        return Array(this.dice).fill(null).map(() => rollerService.rollDice(this.faces))
+        return rollerService.rollDiceNTimes(this.faces, this.dice);
     }
 }
