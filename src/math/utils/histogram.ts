@@ -1,28 +1,14 @@
+/**
+ * Counts values into bins of width `size`. Keys are each bin's lower bound,
+ * so with `size` 1 the keys are the values themselves.
+ */
 export function histogram(data: number[], size: number): Record<number, number> {
-    let min = Infinity;
-    let max = -Infinity;
+    const counts: Record<number, number> = {};
 
     for (const item of data) {
-        if (item < min) min = item;
-        else if (item > max) max = item;
+        const bin = Math.floor(item / size) * size;
+        counts[bin] = (counts[bin] ?? 0) + 1;
     }
 
-    const bins = Math.ceil((max - min + 1) / size);
-
-    console.log(bins);
-
-    // const histogram = new Array(bins).fill(0);
-    const histogram: Record<number, number> = {};
-
-    for (const item of data) {
-        const value = Math.floor((item) / size);
-        if (value in histogram) {
-
-            histogram[value]++;
-        } else {
-            histogram[value] = 1;
-        }
-    }
-
-    return histogram;
+    return counts;
 }
