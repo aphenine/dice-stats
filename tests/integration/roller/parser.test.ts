@@ -44,4 +44,24 @@ describe("Acceptance test cases for the parser and roller", () => {
         expect(result).toBeGreaterThanOrEqual(0);
         expect(result).toBeLessThan(5)
     })
+
+    it("should roll 4d6 drop lowest within its range", () => {
+        const engine = parse("total(remove(4d6, 1))");
+
+        for (let i = 0; i < 50; i++) {
+            const result = engine.roll();
+            expect(result).toBeGreaterThanOrEqual(3);
+            expect(result).toBeLessThanOrEqual(18);
+        }
+    })
+
+    it("should apply arithmetic to scalar results", () => {
+        const engine = parse("max(2d20) + 5 - 1");
+
+        for (let i = 0; i < 50; i++) {
+            const result = engine.roll();
+            expect(result).toBeGreaterThanOrEqual(5);
+            expect(result).toBeLessThanOrEqual(24);
+        }
+    })
 })

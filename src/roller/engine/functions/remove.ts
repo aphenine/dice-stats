@@ -1,18 +1,15 @@
 import { ArrayRollable, Rollable, RollableType } from "../rollable";
 
-export class RemoveDiceRollable implements ArrayRollable {
-    public type: RollableType = RollableType.Array;
+/** Drops the N lowest values from the array and returns the rest, sorted ascending. */
+export class RemoveLowestRollable implements ArrayRollable {
+    readonly type = RollableType.Array;
 
-    constructor(public diceArray: ArrayRollable, public fromHighest: Rollable) {
-        this.type = RollableType.Array;
-    }
-
+    constructor(public readonly values: ArrayRollable, public readonly count: Rollable) {}
 
     roll() {
-        const values = this.diceArray.roll();
+        const count = Math.max(0, this.count.roll());
+        const sorted = [...this.values.roll()].sort((a, b) => a - b);
 
-        values.sort();
-
-        return values.filter((_, i) => i !== (this.fromHighest.roll() - 1));
+        return sorted.slice(count);
     }
 }
