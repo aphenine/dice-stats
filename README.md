@@ -1,8 +1,8 @@
 # dice-stats
 
-A dice roller with a small expression language, a roll engine, and a Next.js
+A dice roller with a small expression language, a roll engine, a Next.js
 front end that rolls an expression many times and plots the distribution of
-results as a histogram.
+results as a histogram, and a JSON API for rolling expressions over HTTP.
 
 ## Getting started
 
@@ -56,8 +56,8 @@ Matching is case sensitive and uses a lowercase `d`.
 run immediately followed by `d` is always the start of a dice array, never a
 constant, so `3d6` is one token and `3` alone is a constant.
 
-An integer with no `d` after it is a constant. A `d` with no digits after it is
-an error.
+An integer with no `d` after it is a constant. A `d` with no digits after it
+is an error, and so is a die with zero faces (`d0`, `2d0`).
 
 ### Functions
 
@@ -73,6 +73,8 @@ The defined functions are:
 |------------------------------|-----------------------------------|---------|-----------|
 | `array(s1, s2, ...)`         | one or more scalars               | array   | Rolls each argument and collects the results, in order. This is how dice with different face counts are grouped together. |
 | `total(a)` / `total(s1, s2, ...)` | one array, **or** one or more scalars | scalar | Sum of all rolled values. |
+| `min(a)` / `min(s1, s2, ...)` | one array, **or** one or more scalars | scalar | Smallest rolled value. |
+| `max(a)` / `max(s1, s2, ...)` | one array, **or** one or more scalars | scalar | Largest rolled value. |
 | `threshold(a, t)`            | an array and a scalar             | scalar  | Rolls `a` and `t`, returns how many values in `a` are **greater than or equal to** `t`. |
 | `remove(a, n)`               | an array and a scalar             | array   | Rolls `a` and `n`, then drops the `n` lowest values (by numeric value). The remaining values are returned, sorted ascending. `remove(4d6, 1)` is "4d6 drop lowest". If `n` is at least the array length the result is empty. |
 
@@ -85,40 +87,40 @@ Rules that apply to every function:
 - Scalar arguments are rolled each time the enclosing function is rolled.
   `threshold(3d6, d4)` compares against a fresh `d4` every sample.
 - Unknown function names are an error.
-- `array` is a language feature rather than an ordinary function: the lexer
-  recognises it by name and gives it its own node type.
+- Functions are defined in one registry (`src/roller/engine/functions/index.ts`)
+  that pairs each name with its accepted signatures and the engine class it
+  builds. Adding a function means adding an engine class and one registry
+  entry; the parser needs no change.
 
-### Operators (planned, not yet parsed)
-
-The engine has `AdditionOperator` and `SubtractionOperator` classes for infix
-`+` and `-` on scalars, and a stub for a `min` function, but the lexer does
-not recognise any of them yet. The intended rules are:
+### Operators
 
 - `+` and `-` are binary, left associative, and operate on scalars only.
   `total(3d6) + 2` and `d20 - 1` are valid; `3d6 + 2` is a type error.
-- Function application binds tighter than `+` and `-`.
-- `min(...)` and `max(...)` follow the array-or-scalars rule and return a
-  scalar.
+- Function application binds tighter than `+` and `-`, and operators may
+  appear inside function arguments: `threshold(3d6, d4 + 1)`.
+- There is no multiplication, division, unary minus or bracketed grouping.
 
 ### Whole expressions
 
 An input must be exactly one expression. Trailing or leading text that is not
-part of that expression is an error.
-
-Today the lexer tolerates several juxtaposed top-level expressions
-(`d6 d8` lexes as two children of the root) and `parse` silently returns only
-the first. That is a gap, not a rule; the single-expression rule above is the
-intended behaviour.
+part of that expression is an error (`d6 d8` is rejected).
 
 ### Errors
 
-Parsing reports an error, rather than guessing, when:
+Parsing throws a `ParseError` (with a `position` into the input) rather than
+guessing when:
 
-- the input, or any argument, does not match exactly one token type;
-- a function name is unknown;
+- the input contains a character outside the language, or a `d` with no face
+  count;
+- a function name is unknown, or an identifier is not followed by `(`;
 - a function's closing bracket is missing;
-- argument types do not match the function's signature, including mixing an
-  array with other arguments.
+- argument types do not match any of the function's signatures, including
+  mixing an array with other arguments;
+- an operand of `+` or `-` is an array;
+- there is more than one top-level expression, or none.
+
+Error messages name the offending text, e.g.
+`total(array, scalar) does not match total(array) or total(scalar, scalar...)`.
 
 ### Examples
 
@@ -132,34 +134,45 @@ Parsing reports an error, rather than guessing, when:
 | `threshold(array(d12, d8, d6, d4), 5)`  | scalar | `2`                 |
 | `remove(4d6, 1)`                        | array  | `[3, 4, 6]`         |
 | `total(remove(4d6, 1))`                 | scalar | `13` (the classic "4d6 drop lowest") |
+| `max(2d20) + 5`                         | scalar | `22` (advantage with a +5 modifier) |
+| `min(d6, d8, d10)`                      | scalar | `2`                 |
 
-## Known divergences between the code and these rules
+## HTTP API
 
-These are places where the current implementation does not yet do what the
-rules above say. They are listed so the rules can be treated as the spec.
+```
+GET  /api/roll?expression=total(3d6)&times=10
+POST /api/roll   { "expression": "total(3d6)", "times": 10 }
+```
 
-- `remove` drops the single `n`-th lowest value instead of the `n` lowest
-  values, and sorts with the default JavaScript comparator, which is
-  lexicographic, so `10` sorts before `2`. It must drop the `n` lowest after a
-  numeric sort.
-- `parse` returns only the first top-level expression instead of rejecting
-  extra input.
-- Function signatures are not checked at parse time; wrong argument types fall
-  through to runtime casts. An unknown function name currently falls back to a
-  `d6` instead of raising an error.
-- `+`, `-`, `min` and `max` are not wired into the lexer or parser.
-- The mixing check rejects any call with more than one argument when one of
-  them is a dice-array token. So `remove(4d6, 1)` and `threshold(3d6, 3)` both
-  fail today even though each has exactly one array argument; only
-  `array(...)` results get through. The check should instead be driven by each
-  function's signature.
+`times` is optional and defaults to 1; it must be an integer from 1 to
+100000. A successful response is:
+
+```json
+{ "expression": "total(3d6)", "type": "scalar", "times": 2, "samples": [11, 7] }
+```
+
+`type` is the expression's static type; for an `array` expression each
+sample is a list of numbers. Invalid input gets a `400` with
+`{ "error": "<parse error message>" }`.
+
+## Web UI
+
+Each row takes an expression and a number of rolls. Scalar expressions are
+plotted as a histogram of their results. Array expressions are flattened, so
+the histogram shows the distribution of the individual dice values. Parse
+errors are shown under the row.
 
 ## Project layout
 
-- `src/roller/parser` – lexer and parser; `parse.ts` is the entry point.
-- `src/roller/engine` – the `Rollable` / `ArrayRollable` interfaces and the
-  classes that implement dice, constants, functions and operators.
-- `src/roller/services/roller.ts` – the only source of randomness.
+- `src/roller/parser` – tokenizer, recursive-descent parser (to an AST) and
+  the builder that type-checks the AST into an engine; `parse.ts` is the entry
+  point.
+- `src/roller/engine` – the `Rollable` / `ArrayRollable` interfaces, the
+  classes that implement dice, constants, functions and operators, and the
+  function registry.
+- `src/roller/services/roller.ts` – the only source of randomness;
+  `sample.ts` rolls an engine N times.
 - `src/math` – pure numeric helpers (histogram).
 - `src/interface` – React components for the page.
+- `src/app/api/roll` – the HTTP route.
 - `tests/unit`, `tests/integration` – jest tests mirroring `src/`.
