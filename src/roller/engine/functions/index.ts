@@ -1,5 +1,6 @@
 import { CreateArrayOperator } from "../operators/array";
 import { AnyRollable, ArrayRollable, Rollable, RollableType, isArrayRollable, typeName } from "../rollable";
+import { HighestRollable, LowestRollable } from "./keep";
 import { MaximumRollable } from "./max";
 import { MinimumRollable } from "./min";
 import { RemoveLowestRollable } from "./remove";
@@ -86,5 +87,15 @@ export const FUNCTIONS: Record<string, FunctionDefinition> = {
         name: "remove",
         signatures: [ARRAY_AND_SCALAR],
         build: ([values, count]) => new RemoveLowestRollable(values as ArrayRollable, count as Rollable),
+    },
+    lowest: {
+        name: "lowest",
+        signatures: [ARRAY_AND_SCALAR],
+        build: ([values, count]) => new LowestRollable(values as ArrayRollable, count as Rollable),
+    },
+    highest: {
+        name: "highest",
+        signatures: [ARRAY_AND_SCALAR],
+        build: ([values, count]) => new HighestRollable(values as ArrayRollable, count as Rollable),
     },
 };
