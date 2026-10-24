@@ -77,6 +77,8 @@ The defined functions are:
 | `max(a)` / `max(s1, s2, ...)` | one array, **or** one or more scalars | scalar | Largest rolled value. |
 | `threshold(a, t)`            | an array and a scalar             | scalar  | Rolls `a` and `t`, returns how many values in `a` are **greater than or equal to** `t`. |
 | `remove(a, n)`               | an array and a scalar             | array   | Rolls `a` and `n`, then drops the `n` lowest values (by numeric value). The remaining values are returned, sorted ascending. `remove(4d6, 1)` is "4d6 drop lowest". If `n` is at least the array length the result is empty. |
+| `lowest(a, n)`               | an array and a scalar             | array   | Rolls `a` and `n`, then keeps only the `n` lowest values, sorted ascending. `lowest(4d4, 2)` gives the two lowest of four d4. If `n` is at least the array length every value is kept. |
+| `highest(a, n)`              | an array and a scalar             | array   | Rolls `a` and `n`, then keeps only the `n` highest values, sorted ascending. `total(highest(4d6, 3))` is another way to write "4d6 drop lowest". |
 
 Rules that apply to every function:
 
@@ -135,6 +137,8 @@ Error messages name the offending text, e.g.
 | `remove(4d6, 1)`                        | array  | `[3, 4, 6]`         |
 | `total(remove(4d6, 1))`                 | scalar | `13` (the classic "4d6 drop lowest") |
 | `max(2d20) + 5`                         | scalar | `22` (advantage with a +5 modifier) |
+| `highest(4d4, 2)`                       | array  | `[3, 4]`            |
+| `total(lowest(2d20, 1))`                | scalar | `7` (disadvantage)  |
 | `min(d6, d8, d10)`                      | scalar | `2`                 |
 
 ## HTTP API

@@ -59,6 +59,33 @@ describe("Engine functions", () => {
         expect(parse("remove(2d6, 5)").roll()).toEqual([]);
     });
 
+    it("lowest keeps the n lowest values, sorted ascending", () => {
+        rollsInOrder(3, 1, 4, 2);
+        expect(parse("lowest(4d4, 2)").roll()).toEqual([1, 2]);
+
+        rollsInOrder(3, 1, 4, 2);
+        expect(parse("lowest(4d4, 10)").roll()).toEqual([1, 2, 3, 4]);
+
+        rollsInOrder(3, 1);
+        expect(parse("lowest(2d4, 0)").roll()).toEqual([]);
+    });
+
+    it("highest keeps the n highest values, sorted ascending", () => {
+        rollsInOrder(3, 10, 4, 2);
+        expect(parse("highest(4d20, 2)").roll()).toEqual([4, 10]);
+
+        rollsInOrder(3, 10, 4, 2);
+        expect(parse("highest(4d20, 10)").roll()).toEqual([2, 3, 4, 10]);
+
+        rollsInOrder(3, 10);
+        expect(parse("highest(2d20, 0)").roll()).toEqual([]);
+    });
+
+    it("composes: total of the highest three of 4d6", () => {
+        rollsInOrder(6, 1, 5, 3);
+        expect(parse("total(highest(4d6, 3))").roll()).toBe(14);
+    });
+
     it("array rolls each scalar in order", () => {
         rollsInOrder(7, 3);
         expect(parse("array(d12, d8, 2)").roll()).toEqual([7, 3, 2]);
