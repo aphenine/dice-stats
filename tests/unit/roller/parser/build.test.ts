@@ -1,6 +1,7 @@
 import { ConstantRollable } from "@/roller/engine/constant";
 import { DiceRollable } from "@/roller/engine/dice";
 import { DiceArrayRollable } from "@/roller/engine/dice-array";
+import { HighestRollable, LowestRollable } from "@/roller/engine/functions/keep";
 import { MaximumRollable } from "@/roller/engine/functions/max";
 import { MinimumRollable } from "@/roller/engine/functions/min";
 import { RemoveLowestRollable } from "@/roller/engine/functions/remove";
@@ -36,6 +37,17 @@ describe("Building engines from expressions", () => {
         expect(parse("remove(4d6, 1)")).toEqual(
             new RemoveLowestRollable(new DiceArrayRollable(4, 6), new ConstantRollable(1)),
         );
+    });
+
+    it("builds lowest and highest from an array and a scalar", () => {
+        expect(parse("lowest(4d4, 2)")).toEqual(
+            new LowestRollable(new DiceArrayRollable(4, 4), new ConstantRollable(2)),
+        );
+        expect(parse("highest(4d4, 2)")).toEqual(
+            new HighestRollable(new DiceArrayRollable(4, 4), new ConstantRollable(2)),
+        );
+        expect(parse("highest(4d4, 2)").type).toBe(RollableType.Array);
+        expect(() => parse("lowest(d4, 2)")).toThrow("lowest(scalar, scalar) does not match lowest(array, scalar)");
     });
 
     it("builds arithmetic operators on scalars", () => {
